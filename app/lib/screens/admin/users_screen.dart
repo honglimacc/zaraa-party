@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../api.dart';
 import '../../auth_state.dart';
 import '../../theme.dart';
+import 'tickets_screen.dart';
 
 /// Panel Admin: cari pengguna, blokir. Super Admin ke atas: ubah peran & koin.
 class UsersScreen extends StatefulWidget {
@@ -122,7 +123,13 @@ class _UsersScreenState extends State<UsersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin Panel')),
+      appBar: AppBar(title: const Text('Admin Panel'), actions: [
+        IconButton(
+          tooltip: 'Tiket CS',
+          icon: const Icon(Icons.support_agent_rounded),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TicketsScreen())),
+        ),
+      ]),
       body: Column(children: [
         if (stats != null)
           Padding(

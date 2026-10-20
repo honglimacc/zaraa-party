@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n.dart';
+import '../realtime.dart';
 import '../theme.dart';
 import 'messages_screen.dart';
 import 'profile_screen.dart';
@@ -34,7 +36,10 @@ class _HomeShellState extends State<HomeShell> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _item(0, Icons.home_rounded),
-              _item(1, Icons.mail_rounded, badge: 11),
+              ValueListenableBuilder<int>(
+                valueListenable: Rt.i.unread,
+                builder: (_, n, __) => _item(1, Icons.mail_rounded, badge: n),
+              ),
               _item(2, null),
             ],
           ),

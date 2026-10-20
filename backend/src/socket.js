@@ -33,6 +33,7 @@ module.exports = function attachSocket(io) {
 
   io.on('connection', (socket) => {
     const me = socket.user;
+    socket.join(`user:${me.id}`); // kanal pribadi: pesan masuk, saldo, notifikasi
     const brief = { userId: me.id, name: me.display_name, avatar: me.avatar_url, frameId: me.frame_id };
 
     socket.on('room:join', (roomId) => {

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 
 class ApiError implements Exception {
@@ -36,6 +38,16 @@ class Api {
       final d = e.response?.data;
       throw ApiError(d is Map && d['error'] != null ? '${d['error']}' : 'Tidak dapat terhubung ke server');
     }
+  }
+
+  /// Unggah byte mentah (gambar / Lottie JSON). Mengembalikan {url, kind, size}.
+  Future<Map> upload(Uint8List bytes) async {
+    final r = await _run(() => dio.post(
+          '/upload',
+          data: bytes,
+          options: Options(contentType: 'application/octet-stream', headers: {Headers.contentLengthHeader: bytes.length}),
+        ));
+    return Map.from(r as Map);
   }
 
   Future<dynamic> get(String p, {Map<String, dynamic>? query}) => _run(() => dio.get(p, queryParameters: query));

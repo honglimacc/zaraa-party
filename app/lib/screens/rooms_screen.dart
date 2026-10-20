@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../l10n.dart';
 import '../theme.dart';
 import 'room_screen.dart';
 
@@ -75,7 +76,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
         backgroundColor: Z.mint,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.mic_rounded),
-        label: const Text('Buat Room'),
+        label: Text(L.t('create_room')),
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -87,7 +88,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
               const SizedBox(height: 14),
               if (banners.isNotEmpty) _bannerStrip(),
               const SizedBox(height: 16),
-              const Text('Room Aktif', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              Text(L.t('active_rooms'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 10),
               if (loading) const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator(color: Z.mint))),
               if (error != null) Padding(padding: const EdgeInsets.all(24), child: Center(child: Text(error!, style: const TextStyle(color: Z.muted)))),

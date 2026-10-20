@@ -6,6 +6,7 @@ import 'package:socket_io_client/socket_io_client.dart' as sio;
 import '../api.dart';
 import '../auth_state.dart';
 import '../theme.dart';
+import '../widgets/gift_effect.dart';
 
 /// Room suara real-time: 8 kursi mic, chat, dan kirim gift.
 /// Status kursi/chat/gift lewat Socket.IO, audio lewat LiveKit.
@@ -26,6 +27,8 @@ class _RoomScreenState extends State<RoomScreen> {
   final input = TextEditingController();
   final scroll = ScrollController();
   Map? giftBanner;
+  final List<Map> giftQueue = []; // gift diputar berurutan agar efek tidak saling menimpa
+  int giftSeq = 0;
 
   int get myId => context.read<AuthState>().me!['id'] as int;
   int? get mySeat {
@@ -58,10 +61,8 @@ class _RoomScreenState extends State<RoomScreen> {
       if (!mounted) return;
       final g = Map.from(d);
       _addChat({'system': true, 'text': '${g['from']['name']} mengirim ${g['gift']['name']} x${g['qty']}'});
-      setState(() => giftBanner = g);
-      Future.delayed(const Duration(seconds: 3), () {
-        if (mounted) setState(() => giftBanner = null);
-      });
+      giftQueue.add(g);
+      if (giftBanner == null) _playNextGift();
     });
     socket.on('wallet:update', (d) => context.read<AuthState>().setCoins(d['coins']));
     socket.on('error:msg', (m) => mounted ? toast(context, '$m') : null);
@@ -73,6 +74,19 @@ class _RoomScreenState extends State<RoomScreen> {
     });
     socket.connect();
     _connectVoice();
+  }
+
+  void _playNextGift() {
+    if (!mounted || giftQueue.isEmpty) return;
+    setState(() {
+      giftBanner = giftQueue.removeAt(0);
+      giftSeq++;
+    });
+    Future.delayed(const Duration(milliseconds: 3000), () {
+      if (!mounted) return;
+      setState(() => giftBanner = null);
+      _playNextGift();
+    });
   }
 
   Future<void> _connectVoice() async {
@@ -295,6 +309,8 @@ class _RoomScreenState extends State<RoomScreen> {
             ),
           ),
         ]),
+        if (giftBanner != null)
+          Positioned.fill(child: GiftEffect(key: ValueKey(giftSeq), gift: giftBanner!['gift'], qty: giftBanner!['qty'])),
         if (giftBanner != null)
           Positioned(
             top: 12,

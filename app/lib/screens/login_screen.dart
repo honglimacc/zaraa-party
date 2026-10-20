@@ -15,6 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _user = TextEditingController();
   final _pass = TextEditingController();
   final _name = TextEditingController();
+  final _invite = TextEditingController();
   bool _register = false;
   bool _busy = false;
 
@@ -23,7 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _busy = true);
     try {
       if (_register) {
-        await auth.register(_user.text.trim(), _pass.text, _name.text.trim());
+        await auth.register(_user.text.trim(), _pass.text, _name.text.trim(), inviteCode: _invite.text.trim());
       } else {
         await auth.login(_user.text.trim(), _pass.text);
       }
@@ -70,6 +71,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   _field(_user, 'Username', Icons.person_outline),
                   const SizedBox(height: 12),
                   _field(_pass, 'Password', Icons.lock_outline, obscure: true),
+                  if (_register) ...[
+                    const SizedBox(height: 12),
+                    _field(_invite, 'Kode undangan (opsional)', Icons.card_giftcard_rounded),
+                  ],
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,

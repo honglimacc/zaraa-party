@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'api.dart';
+import 'l10n.dart';
+import 'realtime.dart';
 
 class AuthState extends ChangeNotifier {
   final _store = const FlutterSecureStorage();
@@ -38,6 +40,8 @@ class AuthState extends ChangeNotifier {
 
   Future<void> refresh() async {
     me = Map<String, dynamic>.from(await Api.i.get('/me') as Map);
+    L.lang = (me!['language'] ?? 'id') as String;
+    Rt.i.connect(token);
     notifyListeners();
   }
 
@@ -52,10 +56,23 @@ class AuthState extends ChangeNotifier {
   Future<void> login(String username, String password) =>
       _auth('/auth/login', {'username': username, 'password': password});
 
-  Future<void> register(String username, String password, String displayName) =>
-      _auth('/auth/register', {'username': username, 'password': password, 'display_name': displayName});
+  Future<void> register(String username, String password, String displayName, {String? inviteCode}) =>
+      _auth('/auth/register', {
+        'username': username,
+        'password': password,
+        'display_name': displayName,
+        if (inviteCode != null && inviteCode.isNotEmpty) 'invite_code': inviteCode,
+      });
+
+  Future<void> setLanguage(String lang) async {
+    await Api.i.put('/me', {'language': lang});
+    L.lang = lang;
+    me?['language'] = lang;
+    notifyListeners();
+  }
 
   Future<void> logout() async {
+    Rt.i.disconnect();
     token = null;
     me = null;
     Api.i.setToken(null);

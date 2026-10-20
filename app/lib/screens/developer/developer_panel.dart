@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../api.dart';
+import '../../uploader.dart';
 import '../../theme.dart';
+import '../admin/tickets_screen.dart';
 
 enum _T { text, number, boolean, json, kind }
 
@@ -71,13 +73,13 @@ class DeveloperPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: _resources.length,
+      length: _resources.length + 1,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Developer Panel'),
-          bottom: TabBar(isScrollable: true, tabs: [for (final r in _resources) Tab(text: r.label)]),
+          bottom: TabBar(isScrollable: true, tabs: [for (final r in _resources) Tab(text: r.label), const Tab(text: 'Pengaturan')]),
         ),
-        body: TabBarView(children: [for (final r in _resources) _ResourceTab(res: r)]),
+        body: TabBarView(children: [for (final r in _resources) _ResourceTab(res: r), const _SettingsTab()]),
       ),
     );
   }
@@ -293,15 +295,111 @@ class _EditSheetState extends State<_EditSheet> {
           ),
         );
       default:
+        final isUrl = f.type == _T.text && f.key.endsWith('_url') && f.key != 'link_url';
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: TextField(
             controller: ctl[f.key],
             keyboardType: f.type == _T.number ? TextInputType.number : null,
             maxLines: f.type == _T.json ? 3 : 1,
-            decoration: InputDecoration(labelText: f.label, border: const OutlineInputBorder()),
+            decoration: InputDecoration(
+              labelText: f.label,
+              border: const OutlineInputBorder(),
+              // Unggah dari perangkat; animasi (Lottie JSON) hanya untuk kolom animasi.
+              suffixIcon: isUrl
+                  ? IconButton(
+                      tooltip: 'Unggah file',
+                      icon: const Icon(Icons.upload_rounded),
+                      onPressed: () async {
+                        final url = await pickAndUpload(context, animation: f.key == 'animation_url');
+                        if (url != null) setState(() => ctl[f.key]!.text = url);
+                      },
+                    )
+                  : null,
+            ),
           ),
         );
     }
+  }
+}
+
+/// Pengaturan global: hadiah check-in, hadiah undangan, kontak CS. Diedit sebagai JSON.
+class _SettingsTab extends StatefulWidget {
+  const _SettingsTab();
+
+  @override
+  State<_SettingsTab> createState() => _SettingsTabState();
+}
+
+class _SettingsTabState extends State<_SettingsTab> with AutomaticKeepAliveClientMixin {
+  Map? data;
+
+  static const _labels = {
+    'checkin_rewards': 'Hadiah check-in harian (daftar koin per hari)',
+    'invite_reward': 'Hadiah undangan (inviter / invitee)',
+    'support': 'Kontak Customer Service (whatsapp, email, hours)',
+  };
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final r = await Api.i.get('/settings');
+      if (mounted) setState(() => data = Map.from(r as Map));
+    } catch (e) {
+      if (mounted) toast(context, '$e');
+    }
+  }
+
+  Future<void> _edit(String key) async {
+    final c = TextEditingController(text: const JsonEncoder.withIndent('  ').convert(data![key]));
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(_labels[key] ?? key, style: const TextStyle(fontSize: 15)),
+        content: TextField(controller: c, maxLines: 8, style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Simpan')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await Api.i.put('/settings/$key', {'value': jsonDecode(c.text)});
+      _load();
+    } on FormatException {
+      if (mounted) toast(context, 'JSON tidak valid');
+    } catch (e) {
+      if (mounted) toast(context, '$e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    if (data == null) return const Center(child: CircularProgressIndicator(color: Z.mint));
+    return ListView(children: [
+      for (final k in _labels.keys)
+        ListTile(
+          title: Text(_labels[k]!),
+          subtitle: Text(jsonEncode(data![k]), maxLines: 2, overflow: TextOverflow.ellipsis),
+          trailing: const Icon(Icons.edit_rounded),
+          onTap: () => _edit(k),
+        ),
+      ListTile(
+        leading: const Icon(Icons.support_agent_rounded),
+        title: const Text('Tiket Customer Service'),
+        trailing: const Icon(Icons.chevron_right_rounded),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TicketsScreen())),
+      ),
+    ]);
   }
 }

@@ -111,3 +111,67 @@ CREATE TABLE IF NOT EXISTS coin_transactions (
   created_by INT REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ===== Tahap 2: upload, top-up, pesan, sosial, earn, CP, support, pengaturan =====
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_by INT REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT NOT NULL DEFAULT 'id';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT;
+
+CREATE TABLE IF NOT EXISTS direct_messages (
+  id SERIAL PRIMARY KEY,
+  sender_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  receiver_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  text TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  read_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS dm_pair_idx ON direct_messages (sender_id, receiver_id, id DESC);
+CREATE INDEX IF NOT EXISTS dm_receiver_idx ON direct_messages (receiver_id, read_at);
+
+CREATE TABLE IF NOT EXISTS topups (
+  id SERIAL PRIMARY KEY,
+  order_id TEXT UNIQUE NOT NULL,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  package_id INT REFERENCES coin_packages(id) ON DELETE SET NULL,
+  coins BIGINT NOT NULL,
+  amount_idr BIGINT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'failed')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  paid_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS checkins (
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  day DATE NOT NULL,
+  streak INT NOT NULL,
+  reward BIGINT NOT NULL,
+  PRIMARY KEY (user_id, day)
+);
+
+CREATE TABLE IF NOT EXISTS cp_pairs (
+  id SERIAL PRIMARY KEY,
+  requester_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  partner_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  accepted_at TIMESTAMPTZ,
+  CHECK (requester_id <> partner_id)
+);
+
+CREATE TABLE IF NOT EXISTS support_tickets (
+  id SERIAL PRIMARY KEY,
+  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  subject TEXT NOT NULL,
+  message TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
+  reply TEXT,
+  replied_by INT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  replied_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL
+);

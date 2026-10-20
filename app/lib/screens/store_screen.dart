@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../auth_state.dart';
+import '../realtime.dart';
 import '../theme.dart';
 
 /// Store: tab Bingkai, VIP/SVIP, dan Koin. Isinya dikelola Developer.
@@ -14,14 +16,52 @@ class StoreScreen extends StatefulWidget {
   State<StoreScreen> createState() => _StoreScreenState();
 }
 
-class _StoreScreenState extends State<StoreScreen> {
+class _StoreScreenState extends State<StoreScreen> with WidgetsBindingObserver {
   List frames = [], tiers = [], packages = [];
   bool loading = true;
+  bool awaitingPayment = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+    // Saldo diperbarui otomatis saat webhook pembayaran masuk.
+    _walletSub = Rt.i.walletStream.stream.listen((c) {
+      if (mounted) context.read<AuthState>().setCoins(c);
+    });
+  }
+
+  late final dynamic _walletSub;
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _walletSub.cancel();
+    super.dispose();
+  }
+
+  // Kembali dari halaman pembayaran: muat ulang saldo (webhook bisa tiba beberapa detik kemudian).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
+    if (state == AppLifecycleState.resumed && awaitingPayment) {
+      awaitingPayment = false;
+      for (var i = 0; i < 4 && mounted; i++) {
+        await context.read<AuthState>().refresh().catchError((_) {});
+        await Future.delayed(const Duration(seconds: 3));
+      }
+    }
+  }
+
+  Future<void> _topup(Map p) async {
+    try {
+      final r = await Api.i.post('/topup/create', {'package_id': p['id']});
+      awaitingPayment = true;
+      final ok = await launchUrl(Uri.parse(r['redirect_url']), mode: LaunchMode.externalApplication);
+      if (!ok && mounted) toast(context, 'Tidak bisa membuka halaman pembayaran');
+    } catch (e) {
+      if (mounted) toast(context, '$e');
+    }
   }
 
   Future<void> _load() async {
@@ -86,7 +126,7 @@ class _StoreScreenState extends State<StoreScreen> {
                 _list(frames, Icons.crop_square_rounded, (f) => '${Z.num(f['price'])} koin', (f) => _buy('frame', f, f['price'])),
                 _list(tiers, Icons.workspace_premium_rounded, (t) => '${t['kind']} • ${t['duration_days']} hari • ${Z.num(t['price_coins'])} koin', (t) => _buy('vip', t, t['price_coins'])),
                 _list(packages, Icons.monetization_on_rounded, (p) => '${Z.num(p['coins'])} koin • Rp ${Z.num(p['price_idr'])}',
-                    (_) => toast(context, 'Pembayaran top-up belum tersedia')),
+                    _topup),
               ]),
       ),
     );
@@ -107,7 +147,7 @@ class _StoreScreenState extends State<StoreScreen> {
             leading: img.isNotEmpty ? Image.network(img, width: 44, height: 44, errorBuilder: (_, __, ___) => Icon(icon, size: 36)) : Icon(icon, size: 36, color: const Color(0xFFFFA63D)),
             title: Text(it['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700)),
             subtitle: Text(sub(it)),
-            trailing: FilledButton(onPressed: () => onTap(it), style: FilledButton.styleFrom(backgroundColor: Z.mint), child: const Text('Beli')),
+            trailing: FilledButton(onPressed: () => onTap(it), style: FilledButton.styleFrom(backgroundColor: Z.mint), child: Text(it.containsKey('price_idr') ? 'Top-up' : 'Beli')),
           ),
         );
       },

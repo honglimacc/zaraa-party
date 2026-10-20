@@ -2,6 +2,7 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const pool = require('../db');
 const { sign, authenticate, publicUser } = require('../auth');
+const { getSetting } = require('./settings');
 
 async function uniquePublicId() {
   for (let i = 0; i < 10; i++) {
@@ -13,20 +14,41 @@ async function uniquePublicId() {
 }
 
 router.post('/auth/register', async (req, res) => {
-  const { username, password, display_name } = req.body || {};
+  const { username, password, display_name, invite_code } = req.body || {};
   if (!username || !password || password.length < 6) {
     return res.status(400).json({ error: 'Username dan password (min. 6 karakter) wajib diisi' });
   }
   const exists = await pool.query('SELECT 1 FROM users WHERE username = $1', [username.toLowerCase()]);
   if (exists.rowCount) return res.status(409).json({ error: 'Username sudah dipakai' });
 
+  // Kode undangan = ID publik pengguna yang mengundang (opsional).
+  let inviter = null;
+  if (invite_code) {
+    const { rows } = await pool.query('SELECT id FROM users WHERE public_id = $1 AND NOT banned', [parseInt(invite_code, 10) || 0]);
+    inviter = rows[0] || null;
+  }
+
   const hash = await bcrypt.hash(password, 10);
   const { rows } = await pool.query(
-    `INSERT INTO users (public_id, username, display_name, password_hash)
-     VALUES ($1, $2, $3, $4) RETURNING *`,
-    [await uniquePublicId(), username.toLowerCase(), display_name || username, hash]
+    `INSERT INTO users (public_id, username, display_name, password_hash, invited_by)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [await uniquePublicId(), username.toLowerCase(), display_name || username, hash, inviter && inviter.id]
   );
-  res.status(201).json({ token: sign(rows[0]), user: publicUser(rows[0]) });
+  let user = rows[0];
+
+  if (inviter) {
+    // Hadiah undangan untuk kedua pihak, tercatat di riwayat koin.
+    const reward = await getSetting('invite_reward');
+    const give = async (uid, amount, reason) => {
+      if (!amount) return;
+      await pool.query('UPDATE users SET coins = coins + $1 WHERE id = $2', [amount, uid]);
+      await pool.query('INSERT INTO coin_transactions (user_id, amount, reason) VALUES ($1, $2, $3)', [uid, amount, reason]);
+    };
+    await give(inviter.id, reward.inviter, `Hadiah undangan: ${user.display_name}`);
+    await give(user.id, reward.invitee, 'Hadiah bergabung lewat undangan');
+    user = (await pool.query('SELECT * FROM users WHERE id = $1', [user.id])).rows[0];
+  }
+  res.status(201).json({ token: sign(user), user: publicUser(user) });
 });
 
 router.post('/auth/login', async (req, res) => {

@@ -4,7 +4,14 @@ import 'package:provider/provider.dart';
 
 import '../auth_state.dart';
 import '../theme.dart';
+import '../l10n.dart';
 import 'admin/users_screen.dart';
+import 'cp_screen.dart';
+import 'earn_screen.dart';
+import 'edit_profile_screen.dart';
+import 'invite_screen.dart';
+import 'people_list_screen.dart';
+import 'support_screen.dart';
 import 'developer/developer_panel.dart';
 import 'my_items_screen.dart';
 import 'store_screen.dart';
@@ -66,6 +73,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _header(Map me, AuthState auth) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _go(const EditProfileScreen()),
+      child: _headerRow(me, auth),
+    );
+  }
+
+  Widget _headerRow(Map me, AuthState auth) {
     return Row(
       children: [
         Container(
@@ -132,16 +147,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _stats(Map me) {
-    Widget cell(String label, dynamic v) => Expanded(
-          child: Column(
+    Widget cell(String label, dynamic v, String kind) => Expanded(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _go(PeopleListScreen(kind: kind, title: label)),
+            child: Column(
             children: [
               Text('$v', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w500, color: Z.text)),
               const SizedBox(height: 6),
               Text(label, style: const TextStyle(color: Z.muted, fontSize: 16)),
             ],
           ),
+          ),
         );
-    return Row(children: [cell('Following', me['following']), cell('Fans', me['fans']), cell('Visitors', me['visitors'])]);
+    return Row(children: [
+      cell(L.t('following'), me['following'], 'following'),
+      cell(L.t('fans'), me['fans'], 'fans'),
+      cell(L.t('visitors'), me['visitors'], 'visitors'),
+    ]);
   }
 
   Widget _walletAndCards(Map me, Map? vip) {
@@ -160,7 +183,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Wallet', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Z.gold)),
+                Text(L.t('wallet'), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Z.gold)),
                 const Spacer(),
                 Container(
                   width: 34,
@@ -202,7 +225,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Text(vip?['kind'] ?? 'SVIP',
                                 style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF176B2C))),
                             const SizedBox(height: 4),
-                            Text(vip != null ? '${vip['name']} aktif' : 'Activate SVIP',
+                            Text(vip != null ? '${vip['name']} aktif' : L.t('activate_svip'),
                                 style: const TextStyle(fontSize: 17, color: Color(0xFF4FA865))),
                           ],
                         ),
@@ -217,7 +240,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   Expanded(
                     child: _smallCard(
-                      'Level',
+                      L.t('level'),
                       const Color(0xFFE0ECFF),
                       const Color(0xFF3B4C9B),
                       Container(
@@ -231,7 +254,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: _smallCard(
-                      'Badges',
+                      L.t('badges'),
                       const Color(0xFFEBE2FF),
                       const Color(0xFF6B45B8),
                       Text('*${me['badge_count']}',
@@ -268,19 +291,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
 
+  Future<void> _pickLanguage(AuthState auth) async {
+    final pick = await showModalBottomSheet<String>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          for (final l in const [['id', 'Bahasa Indonesia'], ['en', 'English']])
+            ListTile(
+              title: Text(l[1]),
+              trailing: L.lang == l[0] ? const Icon(Icons.check_rounded, color: Z.mint) : null,
+              onTap: () => Navigator.pop(context, l[0]),
+            ),
+        ]),
+      ),
+    );
+    if (pick == null || pick == L.lang) return;
+    try {
+      await auth.setLanguage(pick);
+    } catch (e) {
+      if (mounted) toast(context, '$e');
+    }
+  }
+
   Widget _menu(AuthState auth) {
-    final soon = () => toast(context, 'Segera hadir');
     final items = <_MenuItem>[
-      _MenuItem('Invite Friends', Icons.card_giftcard_rounded, const Color(0xFFF2657A), soon),
-      _MenuItem('Earn Cash', Icons.savings_rounded, const Color(0xFFF2B01E), soon),
-      _MenuItem('CP Space', Icons.favorite_rounded, const Color(0xFFFF4D8D), soon),
-      _MenuItem('My Items', Icons.shopping_bag_rounded, const Color(0xFFC77DFF), () => _go(const MyItemsScreen())),
-      _MenuItem('Store', Icons.storefront_rounded, const Color(0xFFFFA63D), () => _go(const StoreScreen())),
-      _MenuItem('Customer Service', Icons.headset_mic_rounded, const Color(0xFF7C6BE0), soon),
-      _MenuItem('Language', Icons.language_rounded, const Color(0xFF4A90E2), soon, trailing: 'English'),
-      if (auth.isStaff) _MenuItem('Admin Panel', Icons.admin_panel_settings_rounded, const Color(0xFF00B887), () => _go(const UsersScreen())),
-      if (auth.isDeveloper) _MenuItem('Developer Panel', Icons.code_rounded, const Color(0xFF222B45), () => _go(const DeveloperPanel())),
-      _MenuItem('Logout', Icons.logout_rounded, const Color(0xFF8A8F98), () => auth.logout()),
+      _MenuItem(L.t('invite'), Icons.card_giftcard_rounded, const Color(0xFFF2657A), () => _go(const InviteScreen())),
+      _MenuItem(L.t('earn'), Icons.savings_rounded, const Color(0xFFF2B01E), () => _go(const EarnScreen())),
+      _MenuItem(L.t('cp'), Icons.favorite_rounded, const Color(0xFFFF4D8D), () => _go(const CpScreen())),
+      _MenuItem(L.t('my_items'), Icons.shopping_bag_rounded, const Color(0xFFC77DFF), () => _go(const MyItemsScreen())),
+      _MenuItem(L.t('store'), Icons.storefront_rounded, const Color(0xFFFFA63D), () => _go(const StoreScreen())),
+      _MenuItem(L.t('support'), Icons.headset_mic_rounded, const Color(0xFF7C6BE0), () => _go(const SupportScreen())),
+      _MenuItem(L.t('language'), Icons.language_rounded, const Color(0xFF4A90E2), () => _pickLanguage(auth), trailing: L.langName),
+      if (auth.isStaff) _MenuItem(L.t('admin'), Icons.admin_panel_settings_rounded, const Color(0xFF00B887), () => _go(const UsersScreen())),
+      if (auth.isDeveloper) _MenuItem(L.t('developer'), Icons.code_rounded, const Color(0xFF222B45), () => _go(const DeveloperPanel())),
+      _MenuItem(L.t('logout'), Icons.logout_rounded, const Color(0xFF8A8F98), () => auth.logout()),
     ];
     return Container(
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),

@@ -52,8 +52,34 @@ dan `NSMicrophoneUsageDescription` di `ios/Runner/Info.plist`.
 Buat proyek di <https://livekit.io> (ada paket gratis) lalu isi `LIVEKIT_*` di `.env`.
 Tanpa LiveKit, kursi, chat, dan gift tetap jalan; hanya audio yang belum aktif.
 
-## Status fitur
+## Fitur tahap 2
 
-Sudah ada: login/daftar, profil sesuai desain acuan, Home + banner + daftar room, room real-time (8 kursi, chat, gift, mute, kick), Store (bingkai, VIP/SVIP), My Items, Admin Panel, Developer Panel (CRUD semua konten).
+| Fitur | Cara kerja |
+|---|---|
+| Upload gambar & animasi | `POST /api/upload` (byte mentah). Jenis file dicek dari isi file, bukan nama. User biasa: gambar ≤ 2 MB (foto profil). Developer: gambar + animasi Lottie `.json` ≤ 8 MB. SVG sengaja ditolak. File disimpan di `backend/uploads/` dan dilayani di `/uploads/...`. Di Developer Panel, kolom URL punya tombol unggah. |
+| Top-up koin | Midtrans Snap. `POST /api/topup/create` -> buka `redirect_url`. Koin masuk otomatis lewat webhook `POST /api/topup/notify` (signature diverifikasi, koin tidak bisa ganda). |
+| Pesan pribadi | Riwayat lewat REST (`/api/dm/...`), pesan masuk real-time lewat Socket.IO (`dm:new`), badge belum dibaca di tab Pesan. |
+| Follow / Fans / Visitors | Buka profil orang lain, ikuti, lihat daftar Following/Fans/Visitors. SVIP dengan perk `hide_visit` tidak tercatat sebagai pengunjung. |
+| Invite Friends | Kode undangan = ID publik. Dimasukkan saat daftar; hadiah koin untuk kedua pihak. |
+| Earn Cash | Check-in harian berantai (reset hari mengikuti WIB) + riwayat koin. |
+| CP Space | Ajukan CP lewat ID, terima/tolak, putuskan. Satu orang hanya bisa punya satu CP. |
+| Customer Service | Kontak WhatsApp/email dari pengaturan + tiket; Admin ke atas membalas dari Admin Panel. |
+| Language | Indonesia / Inggris, disimpan di akun. Baru mencakup menu, label utama, dan layar Home/Profil; teks lain masih Indonesia. |
+| Efek gift | Lottie (`.json`), gambar animasi (gif/webp), atau efek bawaan bila tidak ada animasi. Gift diputar berurutan. |
 
-Belum ada (tahap berikutnya): upload gambar/animasi (saat ini lewat URL), top-up koin lewat pembayaran, pesan pribadi, follow/fans, Invite Friends, Earn Cash, CP Space, Customer Service, pilihan bahasa, efek animasi gift.
+Developer Panel punya tab **Pengaturan** untuk mengubah hadiah check-in, hadiah undangan, dan kontak CS tanpa deploy ulang.
+
+### Menyiapkan pembayaran (Midtrans)
+
+1. Daftar di <https://dashboard.midtrans.com>, ambil **Server Key** (mulai dari sandbox).
+2. Isi `MIDTRANS_SERVER_KEY` di `backend/.env`.
+3. Di dashboard: Settings -> Configuration -> **Payment Notification URL** = `https://DOMAINMU/api/topup/notify`. Server harus bisa diakses dari internet (HTTPS).
+4. Isi `price_idr` paket koin lewat Developer Panel (tab Paket Koin). Untuk produksi set `MIDTRANS_IS_PRODUCTION=true` dan pakai Server Key produksi.
+
+Set `PUBLIC_URL` ke alamat publik server agar URL gambar yang diunggah benar. Folder `uploads/` perlu disimpan permanen (volume) saat deploy.
+
+Android: tambahkan `<queries>` untuk `https`, `mailto` di `AndroidManifest.xml` agar `url_launcher` bisa membuka WhatsApp/email/pembayaran (lihat dokumentasi url_launcher).
+
+## Belum ada
+
+Pembayaran selain Midtrans, pesan gambar/suara di DM, notifikasi push saat aplikasi tertutup, terjemahan penuh seluruh teks, gift yang menambah koin untuk penerima, moderasi konten unggahan.
