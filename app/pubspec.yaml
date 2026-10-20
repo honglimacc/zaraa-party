@@ -1,0 +1,25 @@
+name: zaraa_party
+description: Zaraa Party - aplikasi Voice Room real-time.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.2
+  dio: ^5.7.0
+  flutter_secure_storage: ^9.2.2
+  socket_io_client: ^3.0.2
+  livekit_client: ^2.3.0
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
