@@ -24,7 +24,28 @@ class AuthState extends ChangeNotifier {
         'developer': 'Developer',
       }[r] ?? r;
 
+  /// Rapikan input alamat server: tambahkan https:// bila tidak ada, buang garis miring di akhir.
+  static String normalizeUrl(String v) {
+    var u = v.trim();
+    if (u.isEmpty) return '';
+    if (!u.startsWith('http://') && !u.startsWith('https://')) u = 'https://$u';
+    while (u.endsWith('/')) {
+      u = u.substring(0, u.length - 1);
+    }
+    return u;
+  }
+
+  Future<void> setServer(String url) async {
+    final u = normalizeUrl(url);
+    Api.i.setServer(u);
+    await _store.write(key: 'server_url', value: u);
+    notifyListeners();
+  }
+
   Future<void> init() async {
+    final saved = await _store.read(key: 'server_url');
+    if (saved != null && saved.isNotEmpty) Api.i.setServer(saved);
+    else if (Api.baseUrl.isNotEmpty) Api.i.setServer(Api.baseUrl);
     token = await _store.read(key: 'token');
     if (token != null) {
       Api.i.setToken(token);

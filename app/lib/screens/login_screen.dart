@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../api.dart';
 import '../auth_state.dart';
 import '../theme.dart';
 
@@ -19,7 +20,36 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _register = false;
   bool _busy = false;
 
+  Future<void> _editServer() async {
+    final c = TextEditingController(text: Api.baseUrl);
+    final auth = context.read<AuthState>();
+    final v = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Alamat server'),
+        content: TextField(
+          controller: c,
+          keyboardType: TextInputType.url,
+          autocorrect: false,
+          decoration: const InputDecoration(hintText: 'https://nama-server.onrender.com'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+          FilledButton(onPressed: () => Navigator.pop(context, c.text), child: const Text('Simpan')),
+        ],
+      ),
+    );
+    if (v != null) {
+      await auth.setServer(v);
+      if (mounted) setState(() {});
+    }
+  }
+
   Future<void> _submit() async {
+    if (Api.baseUrl.isEmpty) {
+      toast(context, 'Isi alamat server dulu');
+      return _editServer();
+    }
     final auth = context.read<AuthState>();
     setState(() => _busy = true);
     try {
@@ -90,6 +120,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                           : Text(_register ? 'Daftar' : 'Masuk', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _editServer,
+                    icon: const Icon(Icons.dns_rounded, size: 18),
+                    label: Text(Api.baseUrl.isEmpty ? 'Atur alamat server' : 'Server: ${Api.baseUrl}', overflow: TextOverflow.ellipsis),
                   ),
                   TextButton(
                     onPressed: () => setState(() => _register = !_register),

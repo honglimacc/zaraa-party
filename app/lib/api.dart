@@ -13,7 +13,8 @@ class ApiError implements Exception {
 ///   flutter run --dart-define=API_URL=https://api.domainmu.com
 class Api {
   static final Api i = Api._();
-  static const baseUrl = String.fromEnvironment('API_URL', defaultValue: 'http://10.0.2.2:3000');
+  /// Alamat server. Bisa diisi saat build (--dart-define=API_URL=...) atau diubah dari layar login.
+  static String baseUrl = const String.fromEnvironment('API_URL', defaultValue: '');
 
   final Dio dio = Dio(BaseOptions(
     baseUrl: '$baseUrl/api',
@@ -22,6 +23,11 @@ class Api {
   ));
 
   Api._();
+
+  void setServer(String url) {
+    baseUrl = url;
+    dio.options.baseUrl = '$url/api';
+  }
 
   void setToken(String? t) {
     if (t == null) {
