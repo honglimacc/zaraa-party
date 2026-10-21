@@ -34,11 +34,25 @@ jobs:
       - name: Pasang izin Android
         run: python3 .github/scripts/patch_android.py
 
+      - name: Analisis kode
+        working-directory: app
+        continue-on-error: true
+        run: |
+          flutter pub get 2>&1 | tee ../pub.log || true
+          flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee ../analyze.log || true
+          ../.github/scripts/annotate.sh "pub get" ../pub.log "Because|version solving|Error|error"
+          ../.github/scripts/annotate.sh "analyze" ../analyze.log " error • "
+
       - name: Build APK
         working-directory: app
         run: |
-          flutter pub get
-          flutter build apk --release --dart-define=API_URL=${{ vars.API_URL }}   # kosong = diisi dari layar login
+          set +e
+          flutter build apk --release --dart-define=API_URL=${{ vars.API_URL }} 2>&1 | tee ../build.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" != "0" ]; then
+            ../.github/scripts/annotate.sh "build" ../build.log "Error|error:|FAILURE|What went wrong|Could not|\\.dart:[0-9]+"
+          fi
+          exit $code
 
       - uses: actions/upload-artifact@v4
         with:
