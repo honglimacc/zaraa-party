@@ -30,3 +30,38 @@ if 'android:scheme="https"' not in s:
 s = re.sub(r'android:label="[^"]*"', 'android:label="Zaraa Party"', s, count=1)
 open(p, 'w', encoding='utf-8').write(s)
 print('AndroidManifest dipatch')
+
+# Beberapa plugin masih dikompilasi dengan SDK lama; paksa semua library Android memakai SDK 36.
+import os
+for name, block in (
+    ('android/build.gradle.kts', '''
+subprojects {
+    afterEvaluate {
+        if (project.plugins.hasPlugin("com.android.library")) {
+            project.extensions.configure<com.android.build.gradle.LibraryExtension> {
+                compileSdk = 36
+            }
+        }
+    }
+}
+'''),
+    ('android/build.gradle', '''
+subprojects {
+    afterEvaluate { project ->
+        if (project.plugins.hasPlugin("com.android.library")) {
+            project.android { compileSdkVersion 36 }
+        }
+    }
+}
+'''),
+):
+    gp = os.path.join('app', name)
+    if os.path.exists(gp):
+        g = open(gp, encoding='utf-8').read()
+        # Harus didaftarkan sebelum blok evaluationDependsOn bawaan Flutter.
+        marker = 'subprojects {'
+        idx = g.find(marker)
+        g = g[:idx] + block.lstrip('\n') + '\n' + g[idx:] if idx >= 0 else g + block
+        open(gp, 'w', encoding='utf-8').write(g)
+        print('compileSdk dipaksa 36 di', gp)
+        break
