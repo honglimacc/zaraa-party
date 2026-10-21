@@ -50,7 +50,8 @@ jobs:
           flutter build apk --release --dart-define=API_URL=${{ vars.API_URL }} 2>&1 | tee ../build.log
           code=${PIPESTATUS[0]}
           if [ "$code" != "0" ]; then
-            ../.github/scripts/annotate.sh "build" ../build.log "Error|error:|FAILURE|What went wrong|Could not|\\.dart:[0-9]+"
+            grep -n -A14 "What went wrong" ../build.log | head -30 > ../build-tail.log
+            ../.github/scripts/annotate.sh "build" ../build-tail.log "."
           fi
           exit $code
 
