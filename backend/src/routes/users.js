@@ -33,6 +33,15 @@ router.put('/me', authenticate, async (req, res) => {
   res.json({ ok: true });
 });
 
+// Hapus akun sendiri (wajib untuk Google Play). Data terkait ikut terhapus lewat ON DELETE CASCADE.
+router.delete('/me', authenticate, async (req, res) => {
+  if (req.user.role === 'developer') {
+    return res.status(403).json({ error: 'Akun Developer tidak bisa dihapus dari aplikasi' });
+  }
+  await pool.query('DELETE FROM users WHERE id = $1', [req.user.id]);
+  res.json({ ok: true });
+});
+
 // Daftar following / fans / visitors milik sendiri.
 const lists = {
   following: `SELECT ${card} FROM follows f JOIN users u ON u.id = f.followee_id WHERE f.follower_id = $1 ORDER BY u.display_name`,

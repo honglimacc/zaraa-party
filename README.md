@@ -80,6 +80,13 @@ Set `PUBLIC_URL` ke alamat publik server agar URL gambar yang diunggah benar. Fo
 
 Android: tambahkan `<queries>` untuk `https`, `mailto` di `AndroidManifest.xml` agar `url_launcher` bisa membuka WhatsApp/email/pembayaran (lihat dokumentasi url_launcher).
 
+## Login Google, publikasi, dan alamat server
+
+- **Alamat server & Client ID Google** ditulis di `app/app_config.json` (keduanya bukan rahasia). Setelah terisi, APK dibangun ulang otomatis dan pengguna tidak perlu mengatur apa pun; tombol "Atur alamat server" hilang dan tombol "Lanjutkan dengan Google" muncul.
+- **Tanda tangan aplikasi:** keystore tetap ada terenkripsi di `.github/zaraa.keystore.enc`; kata sandinya disimpan di GitHub Secret `KEYSTORE_PASSPHRASE`. Jangan hilangkan, karena Google Sign-In dan Play Store mengenali aplikasi dari kunci ini.
+- **Setiap build** menerbitkan `ZaraaParty.apk` (pasang langsung) dan `ZaraaParty.aab` (unggah ke Google Play) di Releases -> "terbaru".
+- **Halaman wajib Play Store:** `https://SERVERMU/privacy` dan `https://SERVERMU/hapus-akun`. Hapus akun juga ada di aplikasi (Profil -> Hapus Akun). Teks kebijakan privasi adalah draf umum; sesuaikan bila perlu.
+
 ## Belum ada
 
 Pembayaran selain Midtrans, pesan gambar/suara di DM, notifikasi push saat aplikasi tertutup, terjemahan penuh seluruh teks, gift yang menambah koin untuk penerima, moderasi konten unggahan.

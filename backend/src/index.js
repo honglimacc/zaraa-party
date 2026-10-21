@@ -21,7 +21,9 @@ app.use('/uploads', express.static(UPLOAD_DIR, {
 
 app.get('/health', (_req, res) => res.json({ app: 'Zaraa Party', ok: true }));
 
+app.use(require('./routes/legal')); // /privacy, /hapus-akun
 app.use('/api', require('./routes/auth'));
+app.use('/api', require('./routes/google'));
 app.use('/api', require('./routes/catalog'));
 app.use('/api', require('./routes/shop'));
 app.use('/api', require('./routes/admin'));

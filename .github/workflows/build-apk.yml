@@ -4,10 +4,10 @@ on:
   workflow_dispatch:        # tombol "Run workflow" di tab Actions
   push:
     branches: [main]
-    paths: ['app/**', '.github/workflows/build-apk.yml', '.github/scripts/**']
+    paths: ['app/**', '.github/workflows/build-apk.yml', '.github/scripts/**', '.github/zaraa.keystore.enc']
 
 permissions:
-  contents: write   # untuk menerbitkan APK sebagai Release
+  contents: write   # untuk menerbitkan APK/AAB sebagai Release
 
 jobs:
   apk:
@@ -25,13 +25,26 @@ jobs:
           channel: stable
           cache: true
 
+      # Kunci tanda tangan disimpan terenkripsi di repo; kata sandinya ada di Secret KEYSTORE_PASSPHRASE.
+      - name: Siapkan kunci tanda tangan
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSPHRASE }}
+        run: |
+          if [ -n "$KEYSTORE_PASSWORD" ]; then
+            openssl enc -d -aes-256-cbc -pbkdf2 -in .github/zaraa.keystore.enc -out "$RUNNER_TEMP/zaraa.p12" -pass env:KEYSTORE_PASSWORD
+            echo "KEYSTORE_FILE=$RUNNER_TEMP/zaraa.p12" >> "$GITHUB_ENV"
+            echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Secret KEYSTORE_PASSPHRASE belum diisi. APK memakai kunci debug (login Google & Play Store tidak akan cocok)."
+          fi
+
       - name: Buat proyek Android
         working-directory: app
         run: |
           flutter create . --org com.zaraa --project-name zaraa_party --platforms=android
           rm -f test/widget_test.dart
 
-      - name: Pasang izin Android
+      - name: Pasang izin & tanda tangan Android
         run: python3 .github/scripts/patch_android.py
 
       - name: Analisis kode
@@ -43,23 +56,26 @@ jobs:
           ../.github/scripts/annotate.sh "pub get" ../pub.log "Because|version solving|Error|error"
           ../.github/scripts/annotate.sh "analyze" ../analyze.log " error • "
 
-      - name: Build APK
+      # Alamat server & Client ID Google dibaca dari app/app_config.json (bukan rahasia).
+      - name: Build APK dan AAB
         working-directory: app
         run: |
           set +e
-          flutter build apk --release --dart-define=API_URL=${{ vars.API_URL }} 2>&1 | tee ../build.log
+          flutter build apk --release --dart-define-from-file=app_config.json --build-number=${{ github.run_number }} 2>&1 | tee ../build.log
           code=${PIPESTATUS[0]}
+          if [ "$code" = "0" ]; then
+            flutter build appbundle --release --dart-define-from-file=app_config.json --build-number=${{ github.run_number }} 2>&1 | tee -a ../build.log
+            code=${PIPESTATUS[0]}
+          fi
           if [ "$code" != "0" ]; then
             grep -n -A14 "What went wrong" ../build.log | head -30 > ../build-tail.log
             ../.github/scripts/annotate.sh "build" ../build-tail.log "."
           fi
           exit $code
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: zaraa-party-apk
-          path: app/build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 30
+      - name: Tampilkan SHA-1 tanda tangan
+        run: |
+          keytool -printcert -jarfile app/build/app/outputs/flutter-apk/app-release.apk | grep -E "SHA1|SHA256" | sed 's/^/::notice title=Tanda tangan APK::/'
 
       # Tautan unduhan tetap: tab Releases > "terbaru".
       - name: Terbitkan Release
@@ -67,5 +83,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp app/build/app/outputs/flutter-apk/app-release.apk ZaraaParty.apk
+          cp app/build/app/outputs/bundle/release/app-release.aab ZaraaParty.aab
           gh release delete terbaru --yes --cleanup-tag || true
-          gh release create terbaru ZaraaParty.apk --title "Zaraa Party (terbaru)" --notes "APK terbaru dari commit ${GITHUB_SHA::7}" --target "$GITHUB_SHA"
+          gh release create terbaru ZaraaParty.apk ZaraaParty.aab --title "Zaraa Party (terbaru)" --notes "Build #${{ github.run_number }} dari commit ${GITHUB_SHA::7}. APK untuk dipasang langsung; AAB untuk diunggah ke Google Play." --target "$GITHUB_SHA"

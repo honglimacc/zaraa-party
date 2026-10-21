@@ -30,6 +30,10 @@ services:
         sync: false        # diisi sendiri saat deploy pertama (min. 8 karakter)
       - key: PUBLIC_URL
         sync: false        # alamat https layanan ini, contoh https://zaraa-party-api.onrender.com
+      - key: GOOGLE_CLIENT_ID
+        sync: false        # Client ID tipe Web dari Google Cloud Console
+      - key: CONTACT_EMAIL
+        sync: false        # email kontak di halaman kebijakan privasi
       - key: LIVEKIT_URL
         sync: false
       - key: LIVEKIT_API_KEY

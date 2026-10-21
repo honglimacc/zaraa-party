@@ -13,6 +13,12 @@ class ApiError implements Exception {
 ///   flutter run --dart-define=API_URL=https://api.domainmu.com
 class Api {
   static final Api i = Api._();
+  /// Client ID Google tipe Web (dari app_config.json saat build). Kosong = tombol Google disembunyikan.
+  static const googleClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID', defaultValue: '');
+
+  /// true bila alamat server sudah ditanam saat build, sehingga pengguna tidak perlu mengaturnya.
+  static const serverBaked = String.fromEnvironment('API_URL', defaultValue: '') != '';
+
   /// Alamat server. Bisa diisi saat build (--dart-define=API_URL=...) atau diubah dari layar login.
   static String baseUrl = const String.fromEnvironment('API_URL', defaultValue: '');
 

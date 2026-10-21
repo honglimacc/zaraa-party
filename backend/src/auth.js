@@ -34,7 +34,7 @@ const requireRole = (minRole) => (req, res, next) =>
     : res.status(403).json({ error: 'Akses ditolak' });
 
 const publicUser = (u) => {
-  const { password_hash, ...rest } = u;
+  const { password_hash, google_sub, email, ...rest } = u;
   return rest;
 };
 

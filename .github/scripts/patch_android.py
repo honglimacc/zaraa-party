@@ -65,3 +65,26 @@ subprojects {
         open(gp, 'w', encoding='utf-8').write(g)
         print('compileSdk dipaksa 36 di', gp)
         break
+
+# Tanda tangan release dengan keystore tetap (bila tersedia), supaya SHA-1 stabil untuk Google Sign-In & Play Store.
+ks = os.environ.get('KEYSTORE_FILE')
+gp = 'app/android/app/build.gradle.kts'
+if ks and os.path.exists(gp):
+    g = open(gp, encoding='utf-8').read()
+    cfg = '''    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("KEYSTORE_FILE"))
+            storeType = "pkcs12"
+            storePassword = System.getenv("KEYSTORE_PASSWORD")
+            keyAlias = "zaraa"
+            keyPassword = System.getenv("KEYSTORE_PASSWORD")
+        }
+    }
+
+'''
+    g = g.replace('    buildTypes {', cfg + '    buildTypes {', 1)
+    g = g.replace('signingConfig = signingConfigs.getByName("debug")', 'signingConfig = signingConfigs.getByName("release")')
+    open(gp, 'w', encoding='utf-8').write(g)
+    print('Release ditandatangani dengan keystore Zaraa')
+else:
+    print('PERINGATAN: keystore tidak tersedia, APK ditandatangani kunci debug (SHA-1 berubah-ubah)')

@@ -45,6 +45,21 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _google() async {
+    if (Api.baseUrl.isEmpty) {
+      toast(context, 'Isi alamat server dulu');
+      return _editServer();
+    }
+    setState(() => _busy = true);
+    try {
+      await context.read<AuthState>().loginWithGoogle();
+    } catch (e) {
+      if (mounted) toast(context, '$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _submit() async {
     if (Api.baseUrl.isEmpty) {
       toast(context, 'Isi alamat server dulu');
@@ -121,6 +136,23 @@ class _LoginScreenState extends State<LoginScreen> {
                           : Text(_register ? 'Daftar' : 'Masuk', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     ),
                   ),
+                  if (Api.googleClientId.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                        ),
+                        onPressed: _busy ? null : _google,
+                        icon: const Text('G', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF4285F4))),
+                        label: const Text('Lanjutkan dengan Google', style: TextStyle(color: Z.text, fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ],
+                  if (!Api.serverBaked)
                   TextButton.icon(
                     onPressed: _editServer,
                     icon: const Icon(Icons.dns_rounded, size: 18),

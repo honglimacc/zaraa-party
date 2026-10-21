@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../api.dart';
 
 import '../auth_state.dart';
 import '../theme.dart';
@@ -291,6 +293,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
 
+  Future<void> _deleteAccount(AuthState auth) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Hapus akun permanen?'),
+        content: const Text('Profil, pesan, item, koin, dan riwayat transaksi akan dihapus dan tidak bisa dikembalikan.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(L.t('cancel'))),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE5484D)),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await auth.deleteAccount();
+    } catch (e) {
+      if (mounted) toast(context, '$e');
+    }
+  }
+
   Future<void> _pickLanguage(AuthState auth) async {
     final pick = await showModalBottomSheet<String>(
       context: context,
@@ -324,6 +350,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _MenuItem(L.t('language'), Icons.language_rounded, const Color(0xFF4A90E2), () => _pickLanguage(auth), trailing: L.langName),
       if (auth.isStaff) _MenuItem(L.t('admin'), Icons.admin_panel_settings_rounded, const Color(0xFF00B887), () => _go(const UsersScreen())),
       if (auth.isDeveloper) _MenuItem(L.t('developer'), Icons.code_rounded, const Color(0xFF222B45), () => _go(const DeveloperPanel())),
+      _MenuItem('Kebijakan Privasi', Icons.privacy_tip_rounded, const Color(0xFF8A8F98),
+          () => launchUrl(Uri.parse('${Api.baseUrl}/privacy'), mode: LaunchMode.externalApplication)),
+      if (!auth.isDeveloper) _MenuItem('Hapus Akun', Icons.delete_forever_rounded, const Color(0xFFE5484D), () => _deleteAccount(auth)),
       _MenuItem(L.t('logout'), Icons.logout_rounded, const Color(0xFF8A8F98), () => auth.logout()),
     ];
     return Container(

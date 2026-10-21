@@ -77,6 +77,7 @@ router.get('/me', authenticate, async (req, res) => {
   const vipActive = vip.rows[0] && req.user.vip_expires_at && new Date(req.user.vip_expires_at) > new Date();
   res.json({
     ...publicUser(req.user),
+    email: req.user.email, // hanya untuk pemilik akun
     following: following.rows[0].n,
     fans: fans.rows[0].n,
     visitors: visitors.rows[0].n,

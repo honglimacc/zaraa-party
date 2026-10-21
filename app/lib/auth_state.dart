@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'api.dart';
@@ -92,7 +94,31 @@ class AuthState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Masuk / daftar dengan akun Google. Server memverifikasi id_token ke Google.
+  Future<void> loginWithGoogle() async {
+    final gs = GoogleSignIn(serverClientId: Api.googleClientId, scopes: ['email']);
+    try {
+      await gs.signOut(); // selalu tampilkan pilihan akun
+      final acc = await gs.signIn();
+      if (acc == null) return; // dibatalkan pengguna
+      final idToken = (await acc.authentication).idToken;
+      if (idToken == null) throw ApiError('Google tidak mengirim token. Periksa Client ID.');
+      await _auth('/auth/google', {'id_token': idToken});
+    } on PlatformException catch (e) {
+      throw ApiError('Login Google gagal (${e.code}). Pastikan SHA-1 dan Client ID sudah benar.');
+    }
+  }
+
+  /// Hapus akun permanen lalu keluar.
+  Future<void> deleteAccount() async {
+    await Api.i.delete('/me');
+    await logout();
+  }
+
   Future<void> logout() async {
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {}
     Rt.i.disconnect();
     token = null;
     me = null;
